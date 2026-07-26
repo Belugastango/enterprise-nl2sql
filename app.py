@@ -249,10 +249,7 @@ ai_engine = AIEngine(api_provider=api_provider, api_key=user_api_key, model_name
 
 # Main Application Layout
 if is_admin_mode:
-    guardrails_badge = '<span class="metric-badge" style="background:#FEF2F2; color:#DC2626; border-color:#FCA5A5;">⚠️ Admin Privileges Active</span>'
     st.warning("⚠️ **Admin Mode Active:** The AI can modify database schemas and data. Use with caution.")
-else:
-    guardrails_badge = '<span class="metric-badge">Read-Only Guardrails</span>'
 
 st.markdown(f"""
 <div class="header-card">
@@ -261,12 +258,6 @@ st.markdown(f"""
         Enterprise Data Intelligence
     </div>
     <div class="header-subtitle">Empowering business leaders to query databases instantly using plain English.</div>
-    <div style="margin-top: 14px;">
-        <span class="metric-badge">Gemini 2.5 Flash</span>
-        {guardrails_badge}
-        <span class="metric-badge">Dynamic Visualizations</span>
-        <span class="metric-badge">Auto-Healing SQL</span>
-    </div>
 </div>
 """, unsafe_allow_html=True)
 
