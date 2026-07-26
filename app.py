@@ -291,7 +291,7 @@ for idx, q in enumerate(sample_questions):
 # Query Input Form
 with st.form("nl_query_form"):
     user_query = st.text_area(
-        "Ask a Business Question in Plain English:",
+        "Ask or Command to Manage/Create:",
         value=st.session_state["query_input"],
         placeholder="e.g. Compare total revenue by region for 2025 and 2026...",
         height=90
