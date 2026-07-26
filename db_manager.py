@@ -125,6 +125,66 @@ class DatabaseManager:
             
         return schema_md
 
+    def get_mermaid_er_diagram(self) -> str:
+        """Generates a Mermaid JS ER Diagram string from the database schema."""
+        try:
+            inspector = inspect(self.engine)
+            tables = inspector.get_table_names()
+        except Exception as e:
+            return f"erDiagram\n    ERROR {{ string message \"{str(e)}\" }}"
+        
+        mermaid_str = "erDiagram\n"
+        
+        for table_name in tables:
+            try:
+                columns = inspector.get_columns(table_name)
+                pks = inspector.get_pk_constraint(table_name).get('constrained_columns', [])
+                fks = inspector.get_foreign_keys(table_name)
+                
+                fk_map = {}
+                for fk in fks:
+                    for local_col, ref_col in zip(fk['constrained_columns'], fk['referred_columns']):
+                        fk_map[local_col] = fk['referred_table']
+                        mermaid_str += f"    {fk['referred_table']} ||--o{{ {table_name} : \"{local_col}\"\n"
+                
+                mermaid_str += f"    {table_name} {{\n"
+                for col in columns:
+                    col_name = col['name']
+                    # Keep type simple for mermaid
+                    col_type = str(col['type']).split('(')[0].replace(' ', '_').lower()
+                    key_marker = "PK" if col_name in pks else ("FK" if col_name in fk_map else "")
+                    mermaid_str += f"        {col_type} {col_name} {key_marker}\n"
+                mermaid_str += "    }\n"
+            except Exception:
+                pass
+                
+        return mermaid_str
+
+    def update_table_data(self, table_name: str, edited_rows: dict, df: pd.DataFrame) -> Tuple[bool, str]:
+        """Applies edits from st.data_editor back to the database. Assumes first column is PK if no PK found."""
+        try:
+            inspector = inspect(self.engine)
+            pks = inspector.get_pk_constraint(table_name).get('constrained_columns', [])
+            pk_col = pks[0] if pks else df.columns[0]
+
+            with self.engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
+                for row_idx, changes in edited_rows.items():
+                    pk_value = df.iloc[row_idx][pk_col]
+                    set_clauses = []
+                    params = {"pk_val": pk_value}
+                    for col_name, new_val in changes.items():
+                        # Handle spaces in column names by wrapping in quotes
+                        safe_col = f'"{col_name}"'
+                        set_clauses.append(f"{safe_col} = :{col_name}_val")
+                        params[f"{col_name}_val"] = new_val
+                    
+                    if set_clauses:
+                        sql = text(f'UPDATE "{table_name}" SET {", ".join(set_clauses)} WHERE "{pk_col}" = :pk_val')
+                        conn.execute(sql, params)
+            return True, "Data updated successfully."
+        except Exception as e:
+            return False, f"Update failed: {str(e)}"
+
     def get_schema_details(self) -> Dict[str, pd.DataFrame]:
         """Returns DataFrames of columns and sample rows per table for UI Schema Explorer."""
         details = {}

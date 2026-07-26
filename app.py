@@ -261,304 +261,371 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-# Sample Questions Prompt Bar
-st.markdown("##### Try Asking One of These Business Questions:")
+tab_query, tab_schema, tab_tables = st.tabs(["💬 AI Query Assistant", "🕸️ Schema Visualizer", "🗂️ Table Editor"])
 
-sample_cols = st.columns(3)
-sample_questions = [
-    "What were our top 3 best-selling products last quarter?",
-    "Monthly revenue trend by product category in 2025",
-    "Which sales reps exceeded their quarterly targets in Q4 2025?",
-    "Top 5 customers by total order spend",
-    "Average discount percentage by customer segment",
-    "Low stock products with inventory less than 100 units"
-]
+with tab_query:
+    # Sample Questions Prompt Bar
+    st.markdown("##### Try Asking One of These Business Questions:")
 
-for idx, q in enumerate(sample_questions):
-    col = sample_cols[idx % 3]
-    if col.button(f"{q}", key=f"sq_{idx}", use_container_width=True):
-        st.session_state["query_input"] = q
+    sample_cols = st.columns(3)
+    sample_questions = [
+        "What were our top 3 best-selling products last quarter?",
+        "Monthly revenue trend by product category in 2025",
+        "Which sales reps exceeded their quarterly targets in Q4 2025?",
+        "Top 5 customers by total order spend",
+        "Average discount percentage by customer segment",
+        "Low stock products with inventory less than 100 units"
+    ]
 
-# Query Input Form
-with st.form("nl_query_form"):
-    user_query = st.text_area(
-        "Ask or Command to Manage/Create:",
-        value=st.session_state["query_input"],
-        placeholder="e.g. Compare total revenue by region for 2025 and 2026...",
-        height=90
-    )
-    submit_button = st.form_submit_button("Run Analysis", use_container_width=True)
+    for idx, q in enumerate(sample_questions):
+        col = sample_cols[idx % 3]
+        if col.button(f"{q}", key=f"sq_{idx}", use_container_width=True):
+            st.session_state["query_input"] = q
 
-if submit_button and user_query.strip():
-    st.session_state["query_input"] = user_query.strip()
-    
-    if not conn_ok:
-        st.error(f"⚠️ Cannot run analysis. Database Connection Error: {conn_msg}")
-    elif not ai_engine.is_configured():
-        st.error("⚠️ Please provide a valid Gemini API Key in the sidebar settings.")
-    else:
-        with st.spinner("🔍 Inspecting Database Schema & Generating SQL via Gemini AI..."):
-            try:
-                schema_info = db_mgr.get_schema_summary()
-                generated_sql = ai_engine.generate_sql(
-                    user_question=user_query,
-                    schema_info=schema_info,
-                    dialect=selected_engine_type,
-                    is_admin=is_admin_mode
-                )
-                
-                st.session_state["active_sql"] = generated_sql
-                
-                # Execute Query with Auto-Healing retry loop
-                df, elapsed, error = db_mgr.execute_query(generated_sql, is_admin=is_admin_mode)
-                
-                # Auto-healing if syntax or schema mismatch error occurs
-                if error and "Security Error" not in error:
-                    st.warning(f"⚠️ Initial query encountered a database error. Gemini is auto-correcting...")
-                    fixed_sql = ai_engine.auto_correct_sql(
+    # Query Input Form
+    with st.form("nl_query_form"):
+        user_query = st.text_area(
+            "Ask or Command to Manage/Create:",
+            value=st.session_state["query_input"],
+            placeholder="e.g. Compare total revenue by region for 2025 and 2026...",
+            height=90
+        )
+        submit_button = st.form_submit_button("Run Analysis", use_container_width=True)
+
+    if submit_button and user_query.strip():
+        st.session_state["query_input"] = user_query.strip()
+
+        if not conn_ok:
+            st.error(f"⚠️ Cannot run analysis. Database Connection Error: {conn_msg}")
+        elif not ai_engine.is_configured():
+            st.error("⚠️ Please provide a valid Gemini API Key in the sidebar settings.")
+        else:
+            with st.spinner("🔍 Inspecting Database Schema & Generating SQL via Gemini AI..."):
+                try:
+                    schema_info = db_mgr.get_schema_summary()
+                    generated_sql = ai_engine.generate_sql(
                         user_question=user_query,
-                        broken_sql=generated_sql,
-                        error_message=error,
                         schema_info=schema_info,
                         dialect=selected_engine_type,
                         is_admin=is_admin_mode
                     )
-                    st.session_state["active_sql"] = fixed_sql
-                    df, elapsed, error = db_mgr.execute_query(fixed_sql, is_admin=is_admin_mode)
 
-                st.session_state["df_result"] = df
-                st.session_state["exec_time"] = elapsed
-                st.session_state["error_msg"] = error
+                    st.session_state["active_sql"] = generated_sql
 
-                if df is not None and not df.empty:
-                    # Generate Explanation & Insights asynchronously/parallel
-                    st.session_state["explanation"] = ai_engine.explain_sql(st.session_state["active_sql"], user_query)
-                    st.session_state["insights"] = ai_engine.generate_business_insights(
-                        user_query,
-                        st.session_state["active_sql"],
-                        df.head(10).to_markdown()
-                    )
-                    
-                    # Recommend Chart Config
-                    recommended_config = ai_engine.recommend_chart_config(
-                        user_query,
-                        list(df.columns),
-                        df.head(3).to_dict(orient="records")
-                    )
-                    if not recommended_config:
-                        recommended_config = auto_detect_chart_config(df)
-                    st.session_state["chart_config"] = recommended_config
-                    
-            except Exception as e:
-                st.error(f"❌ Analysis Generation Error: {str(e)}")
+                    # Execute Query with Auto-Healing retry loop
+                    df, elapsed, error = db_mgr.execute_query(generated_sql, is_admin=is_admin_mode)
 
-# Display Results & Tabs if query active
-if st.session_state["active_sql"]:
-    st.markdown("---")
-    
-    # Check for execution security error
-    if st.session_state["error_msg"]:
-        st.markdown(f"""
-        <div class="security-card">
-            <h4>❌ Query Execution Error</h4>
-            <p>{st.session_state['error_msg']}</p>
-        </div>
-        """, unsafe_allow_html=True)
+                    # Auto-healing if syntax or schema mismatch error occurs
+                    if error and "Security Error" not in error:
+                        st.warning(f"⚠️ Initial query encountered a database error. Gemini is auto-correcting...")
+                        fixed_sql = ai_engine.auto_correct_sql(
+                            user_question=user_query,
+                            broken_sql=generated_sql,
+                            error_message=error,
+                            schema_info=schema_info,
+                            dialect=selected_engine_type,
+                            is_admin=is_admin_mode
+                        )
+                        st.session_state["active_sql"] = fixed_sql
+                        df, elapsed, error = db_mgr.execute_query(fixed_sql, is_admin=is_admin_mode)
 
-    tab_results, tab_insights, tab_sql, tab_schema = st.tabs([
-        "Results & Visualizations",
-        "Executive Insights",
-        "SQL Explanation & Query Editor",
-        "Database Schema Explorer"
-    ])
+                    st.session_state["df_result"] = df
+                    st.session_state["exec_time"] = elapsed
+                    st.session_state["error_msg"] = error
 
-    # TAB 1: Results & Charts
-    with tab_results:
-        df = st.session_state["df_result"]
-        if df is not None and not df.empty:
-            st.markdown(f"**Query Performance**: Executed in `{st.session_state['exec_time']:.3f}s` | Returns `{len(df)}` rows.")
-            
-            # Chart controls & figure rendering
-            chart_config = st.session_state["chart_config"] or auto_detect_chart_config(df)
-            
-            col_chart_opts, col_chart_view = st.columns([1, 3])
-            
-            with col_chart_opts:
-                st.markdown("##### Visualization Controls")
-                selected_chart_type = st.selectbox(
-                    "Chart Type",
-                    ["bar", "line", "donut", "pie", "area", "scatter", "table"],
-                    index=["bar", "line", "donut", "pie", "area", "scatter", "table"].index(
-                        chart_config.get("chart_type", "bar") if chart_config.get("chart_type") in ["bar", "line", "donut", "pie", "area", "scatter", "table"] else "bar"
-                    )
-                )
-                
-                num_cols = list(df.select_dtypes(include=['number']).columns)
-                all_cols = list(df.columns)
-                
-                x_axis = st.selectbox("X-Axis / Dimension", all_cols, index=all_cols.index(chart_config.get("x")) if chart_config.get("x") in all_cols else 0)
-                y_axis = st.selectbox("Y-Axis / Metric", num_cols if num_cols else all_cols, index=num_cols.index(chart_config.get("y")) if chart_config.get("y") in num_cols else 0)
-                
-                chart_config_updated = {
-                    "chart_type": selected_chart_type,
-                    "x": x_axis,
-                    "y": y_axis,
-                    "names": x_axis,
-                    "values": y_axis,
-                    "color": chart_config.get("color")
-                }
+                    if df is not None and not df.empty:
+                        # Generate Explanation & Insights asynchronously/parallel
+                        st.session_state["explanation"] = ai_engine.explain_sql(st.session_state["active_sql"], user_query)
+                        st.session_state["insights"] = ai_engine.generate_business_insights(
+                            user_query,
+                            st.session_state["active_sql"],
+                            df.head(10).to_markdown()
+                        )
 
-            with col_chart_view:
-                if selected_chart_type != "table":
-                    fig = create_plotly_figure(df, chart_config_updated, title=st.session_state["query_input"])
-                    if fig:
-                        st.plotly_chart(fig, use_container_width=True)
-                    else:
-                        st.info("Chart preview unavailable for selected columns.")
+                        # Recommend Chart Config
+                        recommended_config = ai_engine.recommend_chart_config(
+                            user_query,
+                            list(df.columns),
+                            df.head(3).to_dict(orient="records")
+                        )
+                        if not recommended_config:
+                            recommended_config = auto_detect_chart_config(df)
+                        st.session_state["chart_config"] = recommended_config
 
-            st.markdown("##### Data Table View")
-            st.dataframe(df, use_container_width=True)
-            
-            # CSV Download Button
-            csv = df.to_csv(index=False).encode('utf-8')
-            st.download_button(
-                label="Download Data as CSV",
-                data=csv,
-                file_name="query_results.csv",
-                mime="text/csv"
-            )
+                except Exception as e:
+                    st.error(f"❌ Analysis Generation Error: {str(e)}")
 
-        elif df is not None and df.empty:
-            st.info("ℹ️ Query executed successfully, but returned 0 rows.")
+    # Display Results & Tabs if query active
+    if st.session_state["active_sql"]:
+        st.markdown("---")
 
-    # TAB 2: Executive Insights
-    with tab_insights:
-        if st.session_state["insights"]:
+        # Check for execution security error
+        if st.session_state["error_msg"]:
             st.markdown(f"""
-            <div class="insight-card">
-                <h3>Executive Business Takeaways</h3>
+            <div class="security-card">
+                <h4>❌ Query Execution Error</h4>
+                <p>{st.session_state['error_msg']}</p>
             </div>
             """, unsafe_allow_html=True)
-            st.markdown(st.session_state["insights"])
-        else:
-            st.info("Execute a query to see AI-generated executive insights.")
 
-    # TAB 3: SQL Explanation & Custom SQL Editor
-    with tab_sql:
-        st.markdown("##### Review & Edit Generated SQL")
-        custom_sql = st.text_area(
-            "SQL Query:",
-            value=st.session_state["active_sql"],
-            height=160
-        )
-        
-        if st.button("Execute Modified SQL", use_container_width=True):
-            df_new, elapsed_new, error_new = db_mgr.execute_query(custom_sql, is_admin=is_admin_mode)
-            st.session_state["active_sql"] = custom_sql
-            st.session_state["df_result"] = df_new
-            st.session_state["exec_time"] = elapsed_new
-            st.session_state["error_msg"] = error_new
-            st.rerun()
+        tab_results, tab_insights, tab_sql, tab_schema = st.tabs([
+            "Results & Visualizations",
+            "Executive Insights",
+            "SQL Explanation & Query Editor",
+            "Database Schema Explorer"
+        ])
 
-        st.markdown("---")
-        st.markdown("##### Plain English SQL Breakdown")
-        if st.session_state["explanation"]:
-            st.markdown(st.session_state["explanation"])
+        # TAB 1: Results & Charts
+        with tab_results:
+            df = st.session_state["df_result"]
+            if df is not None and not df.empty:
+                st.markdown(f"**Query Performance**: Executed in `{st.session_state['exec_time']:.3f}s` | Returns `{len(df)}` rows.")
 
-    # TAB 4: Database Schema Explorer
-    with tab_schema:
-        st.markdown("##### Database Schema & Sample Rows")
-        schema_details = db_mgr.get_schema_details()
-        
-        for table_name, df_sample in schema_details.items():
-            with st.expander(f"Table: `{table_name}` ({len(df_sample.columns)} columns)"):
-                st.dataframe(df_sample, use_container_width=True)
+                # Chart controls & figure rendering
+                chart_config = st.session_state["chart_config"] or auto_detect_chart_config(df)
 
-else:
-    # Default State when no query is run yet
-    st.markdown("---")
-    st.info("Select a sample question above or type your own question to start analyzing data.")
-    
-    with st.expander("View Database Schema Overview"):
-        if conn_ok:
-            st.markdown(db_mgr.get_schema_summary())
-        else:
-            st.error(f"❌ Database connection offline: {conn_msg}")
+                col_chart_opts, col_chart_view = st.columns([1, 3])
 
-# ---------------------------------------------------------
-# Visual Schema Editor (Admin Mode Only)
-# ---------------------------------------------------------
-if is_admin_mode and conn_ok:
-    st.markdown("---")
-    st.subheader("🛠️ Visual Schema Editor")
-    st.caption("Add, rename, or drop columns. AI will automatically write and execute the migration SQL.")
-    
-    tables = list(db_mgr.get_schema_details().keys())
-    if tables:
-        selected_table = st.selectbox("Select Table to Edit:", ["-- Select Table --"] + tables)
-        if selected_table != "-- Select Table --":
-            old_df = db_mgr.get_table_schema_df(selected_table)
-            st.write("Edit columns (Add rows to create columns, delete rows to drop columns):")
-            
-            new_df = st.data_editor(
-                old_df,
-                num_rows="dynamic",
-                key=f"editor_{selected_table}",
-                use_container_width=True
-            )
-            
-            if st.button("Apply Schema Changes", type="primary"):
-                with st.spinner("AI is analyzing changes and generating migration SQL..."):
-                    try:
-                        migration_sql = ai_engine.generate_schema_migration_sql(
-                            table_name=selected_table,
-                            old_schema=old_df.to_markdown(index=False),
-                            new_schema=new_df.to_markdown(index=False),
-                            dialect=selected_engine_type
+                with col_chart_opts:
+                    st.markdown("##### Visualization Controls")
+                    selected_chart_type = st.selectbox(
+                        "Chart Type",
+                        ["bar", "line", "donut", "pie", "area", "scatter", "table"],
+                        index=["bar", "line", "donut", "pie", "area", "scatter", "table"].index(
+                            chart_config.get("chart_type", "bar") if chart_config.get("chart_type") in ["bar", "line", "donut", "pie", "area", "scatter", "table"] else "bar"
                         )
-                        st.info("Generated Migration SQL:")
-                        st.code(migration_sql, language="sql")
-                        
-                        df_mig, elapsed_mig, err_mig = db_mgr.execute_query(migration_sql, is_admin=True)
-                        if err_mig:
-                            st.error(f"Migration Failed: {err_mig}")
-                        else:
-                            st.success(f"Migration applied successfully in {elapsed_mig:.2f}s!")
-                            st.rerun()
-                    except Exception as e:
-                        st.error(f"AI Migration Error: {str(e)}")
+                    )
 
-# ---------------------------------------------------------
-# CSV Import (Admin Mode Only)
-# ---------------------------------------------------------
-if is_admin_mode and conn_ok:
-    st.markdown("---")
-    st.subheader("📁 Import CSV Data")
-    st.caption("Upload a CSV file to automatically create and populate a new table in the database.")
-    
-    with st.form("csv_upload_form", clear_on_submit=True):
-        uploaded_file = st.file_uploader("Choose a CSV file", type=["csv"])
-        col1, col2 = st.columns(2)
-        with col1:
-            csv_table_name = st.text_input("Target Table Name", placeholder="e.g. historical_sales")
-        with col2:
-            if_exists_behavior = st.selectbox("If table exists:", ["fail", "replace", "append"], index=0)
-            
-        csv_submit = st.form_submit_button("Import to Database", type="primary")
-        
-        if csv_submit:
-            if not uploaded_file:
-                st.error("Please select a file to upload.")
-            elif not csv_table_name.strip():
-                st.error("Please provide a valid table name.")
+                    num_cols = list(df.select_dtypes(include=['number']).columns)
+                    all_cols = list(df.columns)
+
+                    x_axis = st.selectbox("X-Axis / Dimension", all_cols, index=all_cols.index(chart_config.get("x")) if chart_config.get("x") in all_cols else 0)
+                    y_axis = st.selectbox("Y-Axis / Metric", num_cols if num_cols else all_cols, index=num_cols.index(chart_config.get("y")) if chart_config.get("y") in num_cols else 0)
+
+                    chart_config_updated = {
+                        "chart_type": selected_chart_type,
+                        "x": x_axis,
+                        "y": y_axis,
+                        "names": x_axis,
+                        "values": y_axis,
+                        "color": chart_config.get("color")
+                    }
+
+                with col_chart_view:
+                    if selected_chart_type != "table":
+                        fig = create_plotly_figure(df, chart_config_updated, title=st.session_state["query_input"])
+                        if fig:
+                            st.plotly_chart(fig, use_container_width=True)
+                        else:
+                            st.info("Chart preview unavailable for selected columns.")
+
+                st.markdown("##### Data Table View")
+                st.dataframe(df, use_container_width=True)
+
+                # CSV Download Button
+                csv = df.to_csv(index=False).encode('utf-8')
+                st.download_button(
+                    label="Download Data as CSV",
+                    data=csv,
+                    file_name="query_results.csv",
+                    mime="text/csv"
+                )
+
+            elif df is not None and df.empty:
+                st.info("ℹ️ Query executed successfully, but returned 0 rows.")
+
+        # TAB 2: Executive Insights
+        with tab_insights:
+            if st.session_state["insights"]:
+                st.markdown(f"""
+                <div class="insight-card">
+                    <h3>Executive Business Takeaways</h3>
+                </div>
+                """, unsafe_allow_html=True)
+                st.markdown(st.session_state["insights"])
             else:
-                with st.spinner(f"Importing {uploaded_file.name} to {csv_table_name}..."):
-                    success, msg = db_mgr.import_csv_to_table(uploaded_file, csv_table_name, if_exists_behavior)
-                    if success:
-                        st.success(msg)
-                        # We use a toast and then sleep briefly, or just don't rerun immediately so user sees message.
-                        # Wait, st.rerun clears the success message immediately unless it's in a toast.
-                        # We'll just let it render without rerun, or we can use st.toast
-                        pass
-                    else:
-                        st.error(msg)
+                st.info("Execute a query to see AI-generated executive insights.")
+
+        # TAB 3: SQL Explanation & Custom SQL Editor
+        with tab_sql:
+            st.markdown("##### Review & Edit Generated SQL")
+            custom_sql = st.text_area(
+                "SQL Query:",
+                value=st.session_state["active_sql"],
+                height=160
+            )
+
+            if st.button("Execute Modified SQL", use_container_width=True):
+                df_new, elapsed_new, error_new = db_mgr.execute_query(custom_sql, is_admin=is_admin_mode)
+                st.session_state["active_sql"] = custom_sql
+                st.session_state["df_result"] = df_new
+                st.session_state["exec_time"] = elapsed_new
+                st.session_state["error_msg"] = error_new
+                st.rerun()
+
+            st.markdown("---")
+            st.markdown("##### Plain English SQL Breakdown")
+            if st.session_state["explanation"]:
+                st.markdown(st.session_state["explanation"])
+
+        # TAB 4: Database Schema Explorer
+        with tab_schema:
+            st.markdown("##### Database Schema & Sample Rows")
+            schema_details = db_mgr.get_schema_details()
+
+            for table_name, df_sample in schema_details.items():
+                with st.expander(f"Table: `{table_name}` ({len(df_sample.columns)} columns)"):
+                    st.dataframe(df_sample, use_container_width=True)
+
+    else:
+        # Default State when no query is run yet
+        st.markdown("---")
+        st.info("Select a sample question above or type your own question to start analyzing data.")
+
+        with st.expander("View Database Schema Overview"):
+            if conn_ok:
+                st.markdown(db_mgr.get_schema_summary())
+            else:
+                st.error(f"❌ Database connection offline: {conn_msg}")
+
+    # ---------------------------------------------------------
+    # Visual Schema Editor (Admin Mode Only)
+    # ---------------------------------------------------------
+    if is_admin_mode and conn_ok:
+        st.markdown("---")
+        st.subheader("🛠️ Visual Schema Editor")
+        st.caption("Add, rename, or drop columns. AI will automatically write and execute the migration SQL.")
+
+        tables = list(db_mgr.get_schema_details().keys())
+        if tables:
+            selected_table = st.selectbox("Select Table to Edit:", ["-- Select Table --"] + tables)
+            if selected_table != "-- Select Table --":
+                old_df = db_mgr.get_table_schema_df(selected_table)
+                st.write("Edit columns (Add rows to create columns, delete rows to drop columns):")
+
+                new_df = st.data_editor(
+                    old_df,
+                    num_rows="dynamic",
+                    key=f"editor_{selected_table}",
+                    use_container_width=True
+                )
+
+                if st.button("Apply Schema Changes", type="primary"):
+                    with st.spinner("AI is analyzing changes and generating migration SQL..."):
+                        try:
+                            migration_sql = ai_engine.generate_schema_migration_sql(
+                                table_name=selected_table,
+                                old_schema=old_df.to_markdown(index=False),
+                                new_schema=new_df.to_markdown(index=False),
+                                dialect=selected_engine_type
+                            )
+                            st.info("Generated Migration SQL:")
+                            st.code(migration_sql, language="sql")
+
+                            df_mig, elapsed_mig, err_mig = db_mgr.execute_query(migration_sql, is_admin=True)
+                            if err_mig:
+                                st.error(f"Migration Failed: {err_mig}")
+                            else:
+                                st.success(f"Migration applied successfully in {elapsed_mig:.2f}s!")
+                                st.rerun()
+                        except Exception as e:
+                            st.error(f"AI Migration Error: {str(e)}")
+
+    # ---------------------------------------------------------
+    # CSV Import (Admin Mode Only)
+    # ---------------------------------------------------------
+    if is_admin_mode and conn_ok:
+        st.markdown("---")
+        st.subheader("📁 Import CSV Data")
+        st.caption("Upload a CSV file to automatically create and populate a new table in the database.")
+
+        with st.form("csv_upload_form", clear_on_submit=True):
+            uploaded_file = st.file_uploader("Choose a CSV file", type=["csv"])
+            col1, col2 = st.columns(2)
+            with col1:
+                csv_table_name = st.text_input("Target Table Name", placeholder="e.g. historical_sales")
+            with col2:
+                if_exists_behavior = st.selectbox("If table exists:", ["fail", "replace", "append"], index=0)
+
+            csv_submit = st.form_submit_button("Import to Database", type="primary")
+
+            if csv_submit:
+                if not uploaded_file:
+                    st.error("Please select a file to upload.")
+                elif not csv_table_name.strip():
+                    st.error("Please provide a valid table name.")
+                else:
+                    with st.spinner(f"Importing {uploaded_file.name} to {csv_table_name}..."):
+                        success, msg = db_mgr.import_csv_to_table(uploaded_file, csv_table_name, if_exists_behavior)
+                        if success:
+                            st.success(msg)
+                            # We use a toast and then sleep briefly, or just don't rerun immediately so user sees message.
+                            # Wait, st.rerun clears the success message immediately unless it's in a toast.
+                            # We'll just let it render without rerun, or we can use st.toast
+                            pass
+                        else:
+                            st.error(msg)
+
+with tab_schema:
+    st.markdown("### Interactive ER Diagram")
+    st.markdown("Explore the database relationships generated dynamically.")
+    
+    mermaid_str = db_mgr.get_mermaid_er_diagram()
+    # Inject Mermaid.js inside an iframe via st.components.v1.html
+    html_code = f"""
+    <script type="module">
+      import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+      mermaid.initialize({{ startOnLoad: true, theme: 'dark' }});
+    </script>
+    <div class="mermaid">
+{mermaid_str}
+    </div>
+    <style>
+      body {{ margin: 0; background-color: transparent; }}
+      .mermaid {{ display: flex; justify-content: center; }}
+    </style>
+    """
+    import streamlit.components.v1 as components
+    components.html(html_code, height=600, scrolling=True)
+
+with tab_tables:
+    st.markdown("### Data Grid Explorer & Editor")
+    schema_details = db_mgr.get_schema_details()
+    if not schema_details:
+        st.info("No tables found or unable to fetch tables.")
+    else:
+        table_names = list(schema_details.keys())
+        selected_table = st.selectbox("Select Table to View/Edit", table_names)
+        
+        st.markdown(f"**Viewing data for `{selected_table}`**")
+        df, elapsed, err = db_mgr.execute_query(f'SELECT * FROM "{selected_table}" LIMIT 1000')
+        if err:
+            st.error(f"Error fetching data: {err}")
+        elif df is not None:
+            if is_admin_mode:
+                st.info("Admin Mode: Edits made in the grid below will be saved directly to the database.")
+                editor_key = f"editor_{selected_table}"
+                
+                # Check for changes in session state
+                if editor_key in st.session_state:
+                    changes = st.session_state[editor_key]
+                    if changes.get("edited_rows") or changes.get("added_rows") or changes.get("deleted_rows"):
+                        if st.button("Save Changes to Database", type="primary", key=f"save_{selected_table}"):
+                            with st.spinner("Saving changes..."):
+                                edited_rows = changes.get("edited_rows", {})
+                                if edited_rows:
+                                    success, msg = db_mgr.update_table_data(selected_table, edited_rows, df)
+                                    if success:
+                                        st.success(msg)
+                                        # Use st.rerun if possible, or wait. 
+                                        import time
+                                        time.sleep(1)
+                                        st.rerun()
+                                    else:
+                                        st.error(msg)
+                                if changes.get("added_rows") or changes.get("deleted_rows"):
+                                    st.warning("Adding or deleting rows via the grid is not yet supported in this version. Use SQL queries.")
+                
+                edited_df = st.data_editor(df, num_rows="dynamic", use_container_width=True, key=editor_key)
+            else:
+                st.dataframe(df, use_container_width=True)
