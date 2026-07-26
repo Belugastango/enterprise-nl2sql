@@ -137,7 +137,7 @@ with st.sidebar:
     provider_choice = st.selectbox(
         "AI Model Provider",
         ["Google Gemini", "OpenAI", "DeepSeek", "OpenRouter"],
-        index=0
+        index=3
     )
     
     if provider_choice == "Google Gemini":
