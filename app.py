@@ -136,7 +136,7 @@ with st.sidebar:
     
     provider_choice = st.selectbox(
         "AI Model Provider",
-        ["Google Gemini", "OpenAI", "DeepSeek"],
+        ["Google Gemini", "OpenAI", "DeepSeek", "OpenRouter"],
         index=0
     )
     
@@ -148,10 +148,21 @@ with st.sidebar:
         api_provider = "openai"
         env_key_name = "OPENAI_API_KEY"
         model_options = ["gpt-4o", "gpt-4o-mini", "o3-mini"]
-    else:
+    elif provider_choice == "DeepSeek":
         api_provider = "deepseek"
         env_key_name = "DEEPSEEK_API_KEY"
         model_options = ["deepseek-chat", "deepseek-reasoner"]
+    else:
+        api_provider = "openrouter"
+        env_key_name = "OPENROUTER_API_KEY"
+        # OpenRouter supports many models, provide a few common ones
+        model_options = [
+            "deepseek/deepseek-r1",
+            "anthropic/claude-3.5-sonnet",
+            "openai/gpt-4o",
+            "google/gemini-2.5-pro",
+            "meta-llama/llama-3.3-70b-instruct"
+        ]
 
     env_api_key = os.getenv(env_key_name, "")
     if not env_api_key:

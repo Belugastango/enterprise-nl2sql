@@ -32,6 +32,14 @@ class AIEngine:
             if self.api_key:
                 import openai
                 self.client = openai.OpenAI(api_key=self.api_key, base_url="https://api.deepseek.com/v1")
+                
+        elif self.api_provider == "openrouter":
+            self.api_key = api_key or os.getenv("OPENROUTER_API_KEY")
+            self.model_name = model_name or "meta-llama/llama-3.3-70b-instruct"
+            self.client = None
+            if self.api_key:
+                import openai
+                self.client = openai.OpenAI(api_key=self.api_key, base_url="https://openrouter.ai/api/v1")
         else:
             raise ValueError(f"Unsupported API provider: {self.api_provider}")
 
@@ -60,7 +68,7 @@ class AIEngine:
             )
             return response.text or ""
             
-        elif self.api_provider in ["openai", "deepseek"]:
+        elif self.api_provider in ["openai", "deepseek", "openrouter"]:
             messages = []
             if system_instruction:
                 messages.append({"role": "system", "content": system_instruction})
