@@ -168,7 +168,8 @@ with st.sidebar:
     db_type = st.radio(
         "Database Source",
         ["SQLite Sample DB (Instant Demo)", "PostgreSQL (Live Instance)"],
-        index=1
+        index=0,
+        help="Use SQLite for instant demo. PostgreSQL requires an internet-facing database when deployed on Streamlit Cloud."
     )
 
     pg_config = {}
