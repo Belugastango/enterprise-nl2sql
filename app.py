@@ -205,17 +205,17 @@ with st.sidebar:
 
     pg_config = {}
     if db_type == "PostgreSQL (Live Instance)":
-        pg_host = st.text_input("Host", value="aws-0-ap-southeast-1.pooler.supabase.com")
+        pg_host = st.text_input("Host", value="", placeholder="Leave empty for default Supabase")
         pg_port = st.number_input("Port", value=5432)
-        pg_db = st.text_input("Database Name", value="postgres")
-        pg_user = st.text_input("Username", value="postgres.jwklilwixyxuczhimrgl")
-        pg_pass = st.text_input("Password", type="password", value="Mayank@2402")
+        pg_db = st.text_input("Database Name", value="", placeholder="Leave empty for default")
+        pg_user = st.text_input("Username", value="", placeholder="Leave empty for default")
+        pg_pass = st.text_input("Password", type="password", value="")
         pg_config = {
-            "host": pg_host,
+            "host": pg_host if pg_host.strip() else "aws-0-ap-southeast-1.pooler.supabase.com",
             "port": pg_port,
-            "dbname": pg_db,
-            "user": pg_user,
-            "password": pg_pass
+            "dbname": pg_db if pg_db.strip() else "postgres",
+            "user": pg_user if pg_user.strip() else "postgres.jwklilwixyxuczhimrgl",
+            "password": pg_pass if pg_pass.strip() else "Mayank@2402"
         }
 
     # Instantiation of DB Manager
