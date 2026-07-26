@@ -134,6 +134,11 @@ with st.sidebar:
 
     st.subheader("1. AI Engine (Gemini)")
     env_api_key = os.getenv("GEMINI_API_KEY", "")
+    if not env_api_key:
+        try:
+            env_api_key = st.secrets.get("GEMINI_API_KEY", "")
+        except Exception:
+            pass
     user_api_key = st.text_input(
         "Gemini API Key",
         value=env_api_key,
