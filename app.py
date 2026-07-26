@@ -132,23 +132,43 @@ with st.sidebar:
     st.image("https://img.icons8.com/isometric-line/100/database-setting.png", width=64)
     st.title("Settings & DB Config")
 
-    st.subheader("1. AI Engine (Gemini)")
-    env_api_key = os.getenv("GEMINI_API_KEY", "")
+    st.subheader("1. AI Engine Selection")
+    
+    provider_choice = st.selectbox(
+        "AI Model Provider",
+        ["Google Gemini", "OpenAI", "DeepSeek"],
+        index=0
+    )
+    
+    if provider_choice == "Google Gemini":
+        api_provider = "gemini"
+        env_key_name = "GEMINI_API_KEY"
+        model_options = ["gemini-2.5-flash", "gemini-2.5-pro", "gemini-1.5-flash"]
+    elif provider_choice == "OpenAI":
+        api_provider = "openai"
+        env_key_name = "OPENAI_API_KEY"
+        model_options = ["gpt-4o", "gpt-4o-mini", "o3-mini"]
+    else:
+        api_provider = "deepseek"
+        env_key_name = "DEEPSEEK_API_KEY"
+        model_options = ["deepseek-chat", "deepseek-reasoner"]
+
+    env_api_key = os.getenv(env_key_name, "")
     if not env_api_key:
         try:
-            env_api_key = st.secrets.get("GEMINI_API_KEY", "")
+            env_api_key = st.secrets.get(env_key_name, "")
         except Exception:
             pass
+            
     user_api_key = st.text_input(
-        "Gemini API Key",
+        f"{provider_choice} API Key",
         value=env_api_key,
-        type="password",
-        help="Get your key from Google AI Studio (aistudio.google.com)"
+        type="password"
     )
 
     model_choice = st.selectbox(
-        "Gemini Model",
-        ["gemini-2.5-flash", "gemini-2.5-pro", "gemini-1.5-flash"],
+        "Model Version",
+        model_options,
         index=0
     )
 
@@ -206,7 +226,7 @@ with st.sidebar:
     st.caption("Antigravity AI Data Analyst v2.5")
 
 # Initialize AI Engine
-ai_engine = AIEngine(api_key=user_api_key, model_name=model_choice)
+ai_engine = AIEngine(api_provider=api_provider, api_key=user_api_key, model_name=model_choice)
 
 # Main Application Layout
 if is_admin_mode:
