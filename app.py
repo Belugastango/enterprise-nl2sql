@@ -205,11 +205,11 @@ with st.sidebar:
 
     pg_config = {}
     if db_type == "PostgreSQL (Live Instance)":
-        pg_host = st.text_input("Host", value="localhost")
+        pg_host = st.text_input("Host", value="aws-0-ap-southeast-1.pooler.supabase.com")
         pg_port = st.number_input("Port", value=5432)
-        pg_db = st.text_input("Database Name", value="analytics_db")
-        pg_user = st.text_input("Username", value="postgres")
-        pg_pass = st.text_input("Password", type="password", value="mayank")
+        pg_db = st.text_input("Database Name", value="postgres")
+        pg_user = st.text_input("Username", value="postgres.jwklilwixyxuczhimrgl")
+        pg_pass = st.text_input("Password", type="password", value="Mayank@2402")
         pg_config = {
             "host": pg_host,
             "port": pg_port,
