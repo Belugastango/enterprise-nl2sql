@@ -31,6 +31,11 @@ class DatabaseManager:
             import urllib.parse
             encoded_password = urllib.parse.quote_plus(password)
             uri = f"postgresql://{user}:{encoded_password}@{host}:{port}/{dbname}"
+            
+            # Enforce SSL SNI for cloud providers like Supabase
+            if "supabase" in host or "pooler" in host:
+                uri += "?sslmode=require"
+                
             return create_engine(uri)
         else:
             raise ValueError(f"Unsupported database type: {self.db_type}")
