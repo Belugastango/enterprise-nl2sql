@@ -242,7 +242,7 @@ with st.sidebar:
             st.toast("Sample database re-seeded successfully!", icon="✅")
 
     st.markdown("---")
-    st.caption("Antigravity AI Data Analyst v2.5")
+
 
 # Initialize AI Engine
 ai_engine = AIEngine(api_provider=api_provider, api_key=user_api_key, model_name=model_choice)
