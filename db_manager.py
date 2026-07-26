@@ -28,7 +28,9 @@ class DatabaseManager:
             dbname = self.pg_config.get("dbname", "postgres")
             user = self.pg_config.get("user", "postgres")
             password = self.pg_config.get("password", "")
-            uri = f"postgresql://{user}:{password}@{host}:{port}/{dbname}"
+            import urllib.parse
+            encoded_password = urllib.parse.quote_plus(password)
+            uri = f"postgresql://{user}:{encoded_password}@{host}:{port}/{dbname}"
             return create_engine(uri)
         else:
             raise ValueError(f"Unsupported database type: {self.db_type}")
