@@ -256,7 +256,10 @@ else:
 
 st.markdown(f"""
 <div class="header-card">
-    <div class="header-title">Enterprise Data Intelligence</div>
+    <div class="header-title">
+        <img src="https://upload.wikimedia.org/wikipedia/commons/2/29/Postgresql_elephant.svg" width="45" style="vertical-align: middle; margin-right: 12px; margin-bottom: 8px;" alt="Postgres Logo">
+        Enterprise Data Intelligence
+    </div>
     <div class="header-subtitle">Empowering business leaders to query databases instantly using plain English — powered by Google Gemini AI & Plotly.</div>
     <div style="margin-top: 14px;">
         <span class="metric-badge">Gemini 2.5 Flash</span>
